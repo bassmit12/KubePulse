@@ -29,7 +29,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: __BACKEND_IMAGE__
+          image: ghcr.io/bassmit12/kubepulse-backend:latest
           imagePullPolicy: Always
           env:
             - name: KEYCLOAK_ISSUER
@@ -76,7 +76,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: __FRONTEND_IMAGE__
+          image: ghcr.io/bassmit12/kubepulse-frontend:latest
           imagePullPolicy: Always
           env:
             - name: NEXT_PUBLIC_API_BASE

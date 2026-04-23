@@ -1,4 +1,4 @@
-name: Deploy KubePulse to Kubernetes
+name: Build and Publish Images (GHCR)
 
 on:
   push:
@@ -9,11 +9,8 @@ permissions:
   contents: read
   packages: write
 
-env:
-  NAMESPACE: kubepulse
-
 jobs:
-  deploy:
+  publish-images:
     runs-on: ubuntu-latest
 
     steps:
@@ -38,49 +35,23 @@ jobs:
       - name: Define image tags
         run: |
           OWNER_LC=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
-          echo "OWNER_LC=$OWNER_LC" >> $GITHUB_ENV
-          echo "BACKEND_IMAGE=ghcr.io/$OWNER_LC/kubepulse-backend:${GITHUB_SHA}" >> $GITHUB_ENV
-          echo "FRONTEND_IMAGE=ghcr.io/$OWNER_LC/kubepulse-frontend:${GITHUB_SHA}" >> $GITHUB_ENV
+          echo "BACKEND_SHA=ghcr.io/$OWNER_LC/kubepulse-backend:${GITHUB_SHA}" >> $GITHUB_ENV
+          echo "BACKEND_LATEST=ghcr.io/$OWNER_LC/kubepulse-backend:latest" >> $GITHUB_ENV
+          echo "FRONTEND_SHA=ghcr.io/$OWNER_LC/kubepulse-frontend:${GITHUB_SHA}" >> $GITHUB_ENV
+          echo "FRONTEND_LATEST=ghcr.io/$OWNER_LC/kubepulse-frontend:latest" >> $GITHUB_ENV
 
-      - name: Build and push backend image (Encore)
+      - name: Build and push backend image (SHA)
         working-directory: backend-encore
         run: |
-          encore build docker "$BACKEND_IMAGE" --push
+          encore build docker "$BACKEND_SHA" --push
 
-      - name: Build and push frontend image
+      - name: Build and push backend image (latest)
+        working-directory: backend-encore
         run: |
-          docker build -t "$FRONTEND_IMAGE" ./frontend
-          docker push "$FRONTEND_IMAGE"
+          encore build docker "$BACKEND_LATEST" --push
 
-      - name: Set up kubectl
-        uses: azure/setup-kubectl@v4
-
-      - name: Configure kubeconfig
+      - name: Build and push frontend images
         run: |
-          mkdir -p "$HOME/.kube"
-          cat > "$HOME/.kube/config" <<'EOF'
-          ${{ secrets.KUBE_CONFIG }}
-          EOF
-
-      - name: Render manifest
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import os
-
-          src = Path('infra/k8s/kubepulse-deployment.yaml')
-          dst = Path('infra/k8s/kubepulse-deployment.rendered.yaml')
-          text = src.read_text(encoding='utf-8')
-          text = text.replace('__BACKEND_IMAGE__', os.environ['BACKEND_IMAGE'])
-          text = text.replace('__FRONTEND_IMAGE__', os.environ['FRONTEND_IMAGE'])
-          dst.write_text(text, encoding='utf-8')
-          PY
-
-      - name: Deploy to cluster
-        run: |
-          kubectl apply -f infra/k8s/kubepulse-deployment.rendered.yaml
-          kubectl rollout status deploy/kubepulse-backend -n "$NAMESPACE" --timeout=300s
-          kubectl rollout status deploy/kubepulse-frontend -n "$NAMESPACE" --timeout=300s
-
-      - name: Show status
-        run: kubectl get pods -n "$NAMESPACE" -o wide
+          docker build -t "$FRONTEND_SHA" -t "$FRONTEND_LATEST" ./frontend
+          docker push "$FRONTEND_SHA"
+          docker push "$FRONTEND_LATEST"
