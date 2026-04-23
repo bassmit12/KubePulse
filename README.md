@@ -10,32 +10,31 @@ Integrated Kubernetes observability + anomaly detection platform.
 - Observability: Prometheus + Cilium + Hubble
 
 ## Project Structure
-- `frontend/` Next.js dashboard UI
-- `backend/` plain Go + GraphQL starter scaffold
-- `backend-encore/` Encore Go app (active backend scaffold)
+- `frontend/` Next.js dashboard UI (Notion-style)
+- `backend-encore/` Encore Go backend APIs
 - `infra/` Kubernetes manifests and deployment scaffolding
 - `docs/` architecture docs and planning
 
 ## Quick Start (local)
-1. Frontend
-   - `cd frontend`
-   - `npm run dev`
-2. Encore backend
+1. Backend (Encore)
    - `cd backend-encore`
    - `encore run`
-3. Plain Go backend (optional fallback)
-   - `cd backend`
-   - `go mod tidy`
-   - `go run ./cmd/api`
+2. Frontend
+   - `cd frontend`
+   - `npm run dev`
+
+Set frontend API base if needed:
+- PowerShell: `$env:NEXT_PUBLIC_API_BASE="http://localhost:4000"`
 
 ## Current status
-Initial app scaffold generated and Encore backend bootstrapped with endpoints:
+Sprint 1 foundation includes:
 - `GET /healthz`
-- `GET /services?namespace=kubepulse`
-- `GET /incidents?status=OPEN`
+- `GET /services`
+- `GET /incidents`
+- `POST /auth/verify` (Keycloak JWT verification via JWKS)
+- `POST /graphql` (MVP query endpoint for health/services/incidents)
 
 Next steps:
-- Keycloak OIDC integration in backend-encore
-- GraphQL gateway in backend-encore
-- Prometheus/Hubble ingestion adapters
+- Keycloak role-based route protection
+- Prometheus/Hubble data adapters
 - anomaly engine v1
