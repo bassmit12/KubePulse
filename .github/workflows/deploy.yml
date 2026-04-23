@@ -1,0 +1,86 @@
+name: Deploy KubePulse to Kubernetes
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  NAMESPACE: kubepulse
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install Encore CLI
+        run: |
+          curl -L https://encore.dev/install.sh | bash
+          echo "$HOME/.encore/bin" >> $GITHUB_PATH
+
+      - name: Define image tags
+        run: |
+          OWNER_LC=$(echo "${GITHUB_REPOSITORY_OWNER}" | tr '[:upper:]' '[:lower:]')
+          echo "OWNER_LC=$OWNER_LC" >> $GITHUB_ENV
+          echo "BACKEND_IMAGE=ghcr.io/$OWNER_LC/kubepulse-backend:${GITHUB_SHA}" >> $GITHUB_ENV
+          echo "FRONTEND_IMAGE=ghcr.io/$OWNER_LC/kubepulse-frontend:${GITHUB_SHA}" >> $GITHUB_ENV
+
+      - name: Build and push backend image (Encore)
+        working-directory: backend-encore
+        run: |
+          encore build docker "$BACKEND_IMAGE" --push
+
+      - name: Build and push frontend image
+        run: |
+          docker build -t "$FRONTEND_IMAGE" ./frontend
+          docker push "$FRONTEND_IMAGE"
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          cat > "$HOME/.kube/config" <<'EOF'
+          ${{ secrets.KUBE_CONFIG }}
+          EOF
+
+      - name: Render manifest
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import os
+
+          src = Path('infra/k8s/kubepulse-deployment.yaml')
+          dst = Path('infra/k8s/kubepulse-deployment.rendered.yaml')
+          text = src.read_text(encoding='utf-8')
+          text = text.replace('__BACKEND_IMAGE__', os.environ['BACKEND_IMAGE'])
+          text = text.replace('__FRONTEND_IMAGE__', os.environ['FRONTEND_IMAGE'])
+          dst.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Deploy to cluster
+        run: |
+          kubectl apply -f infra/k8s/kubepulse-deployment.rendered.yaml
+          kubectl rollout status deploy/kubepulse-backend -n "$NAMESPACE" --timeout=300s
+          kubectl rollout status deploy/kubepulse-frontend -n "$NAMESPACE" --timeout=300s
+
+      - name: Show status
+        run: kubectl get pods -n "$NAMESPACE" -o wide

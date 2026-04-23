@@ -26,6 +26,24 @@ Integrated Kubernetes observability + anomaly detection platform.
 Set frontend API base if needed:
 - PowerShell: `$env:NEXT_PUBLIC_API_BASE="http://localhost:4000"`
 
+## CI/CD Deployment (GitHub → Kubernetes)
+This repo includes `.github/workflows/deploy.yml`.
+
+Trigger:
+- push to `main`
+- manual run via GitHub Actions UI
+
+Required GitHub secret:
+- `KUBE_CONFIG` = full kubeconfig content (already added by you)
+
+Images:
+- `ghcr.io/<owner>/kubepulse-backend:<commit-sha>`
+- `ghcr.io/<owner>/kubepulse-frontend:<commit-sha>`
+
+Important:
+- If GHCR packages are private, your cluster must have imagePullSecrets for GHCR.
+- Easiest path: set GHCR packages to public for now.
+
 ## Current status
 Sprint 1 foundation includes:
 - `GET /healthz`
