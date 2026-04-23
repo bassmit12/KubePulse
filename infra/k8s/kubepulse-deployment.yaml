@@ -1,0 +1,107 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kubepulse
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubepulse-config
+  namespace: kubepulse
+data:
+  NEXT_PUBLIC_API_BASE: "http://kubepulse-backend.kubepulse.svc.cluster.local"
+  KEYCLOAK_ISSUER: "http://keycloak.keycloak.svc.cluster.local/realms/kubepulse"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubepulse-backend
+  namespace: kubepulse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubepulse-backend
+  template:
+    metadata:
+      labels:
+        app: kubepulse-backend
+    spec:
+      containers:
+        - name: backend
+          image: __BACKEND_IMAGE__
+          imagePullPolicy: Always
+          env:
+            - name: KEYCLOAK_ISSUER
+              valueFrom:
+                configMapKeyRef:
+                  name: kubepulse-config
+                  key: KEYCLOAK_ISSUER
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubepulse-backend
+  namespace: kubepulse
+spec:
+  selector:
+    app: kubepulse-backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubepulse-frontend
+  namespace: kubepulse
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kubepulse-frontend
+  template:
+    metadata:
+      labels:
+        app: kubepulse-frontend
+    spec:
+      containers:
+        - name: frontend
+          image: __FRONTEND_IMAGE__
+          imagePullPolicy: Always
+          env:
+            - name: NEXT_PUBLIC_API_BASE
+              valueFrom:
+                configMapKeyRef:
+                  name: kubepulse-config
+                  key: NEXT_PUBLIC_API_BASE
+          ports:
+            - containerPort: 3000
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubepulse-frontend
+  namespace: kubepulse
+spec:
+  selector:
+    app: kubepulse-frontend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 3000
