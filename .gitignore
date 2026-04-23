@@ -1,0 +1,20 @@
+# Node
+frontend/node_modules
+frontend/.next
+frontend/out
+
+# Go
+backend/bin
+backend/.cache
+
+# Env
+.env
+.env.local
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
