@@ -1,0 +1,43 @@
+name: Mirror upstream images to GHCR
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 */6 * * *'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        image:
+          - nginx:1.27-alpine
+          - redis:7-alpine
+          # Add any other dependency images Multistax should pull prebuilt.
+
+    steps:
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Pull, retag, push
+        shell: bash
+        run: |
+          set -euo pipefail
+          src="${{ matrix.image }}"
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          safe="${src//\//-}"
+          target="ghcr.io/${owner}/multistax-cache:${safe}"
+
+          echo "Mirroring ${src} -> ${target}"
+          docker pull "${src}"
+          docker tag "${src}" "${target}"
+          docker push "${target}"
