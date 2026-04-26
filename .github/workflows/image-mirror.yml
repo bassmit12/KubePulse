@@ -35,7 +35,7 @@ jobs:
           src="${{ matrix.image }}"
           owner="${GITHUB_REPOSITORY_OWNER,,}"
           safe="${src//\//-}"
-          target="ghcr.io/${owner}/multistax-cache:${safe}"
+          target="ghcr.io/${owner}/multistax-cache/${safe}"
 
           echo "Mirroring ${src} -> ${target}"
           docker pull "${src}"
